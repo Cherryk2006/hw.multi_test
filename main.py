@@ -1,5 +1,5 @@
 from datetime import datetime
-from multiprocessing import Queue
+from multiprocessing import Queue, Process
 from threading import Thread
 
 
@@ -47,3 +47,50 @@ if __name__ == '__main__':
         print(ticket_number)
         total += ticket_number
     print(total)
+
+
+def collatz_check(n):
+    while n != 1:
+        if n % 2 == 0:
+            n //= 2
+        else:
+            n = 3 * n + 1
+    return True
+
+
+def collatz_range_check(start, end, queue_object):
+    for i in range(start, end):
+        if not collatz_check(i):
+            queue_object.put(f"Failed for number: {i}")
+            return
+    queue_object.put(f"Checked range {start}-{end}: All numbers satisfy the Collatz Conjecture")
+
+
+if __name__ == '__main__':
+    LIMIT = 1000000000
+    NUM_WORKERS = 8
+
+    step = LIMIT // NUM_WORKERS
+    processes = []
+    results_queue = Queue()
+
+    print("Starting Collatz Conjecture check...")
+    start_time = datetime.now()
+
+    for i in range(NUM_WORKERS):
+        start = i * step + 1
+        end = (i + 1) * step if i < NUM_WORKERS - 1 else LIMIT + 1
+        process = Process(target=collatz_range_check, args=(start, end, results_queue))
+        processes.append(process)
+        process.start()
+
+    for process in processes:
+        process.join()
+
+    end_time = datetime.now()
+
+    while not results_queue.empty():
+        print(results_queue.get())
+
+    print("All numbers from 1 to 1,000,000,000 satisfy the Collatz Conjecture.")
+    print("Time taken: ", end_time - start_time)
